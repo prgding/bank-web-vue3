@@ -1,37 +1,40 @@
 <script lang="ts" setup>
 import {reactive, ref} from 'vue'
 import axios from "axios";
+import {ElMessage} from 'element-plus'
 
-const formLabelAlign = reactive({
+const loginForm = reactive({
   username: '',
   password: '',
   captchaCode: '',
 })
-const fits = ['contain']
-const url = 'http://localhost:8080/captcha'
 
 const onRegister = () => {
   axios.post('http://localhost:8080/register', {
-    username: formLabelAlign.username,
-    password: formLabelAlign.password,
-    captchaCode: formLabelAlign.captchaCode
+    username: loginForm.username,
+    password: loginForm.password,
+    captchaCode: loginForm.captchaCode
   }).then(res => {
-    alert(res.data)
+    if (res.data === "注册成功") {
+      ElMessage.success(res.data)
+    } else {
+      ElMessage.error(res.data)
+    }
   }).catch(err => {
-    alert('注册失败，错误码: ' + err)
+    ElMessage.error('注册失败，错误码: ' + err)
   })
 }
 const onLogin = () => {
   axios.post('http://localhost:8080/login', {
-    username: formLabelAlign.username,
-    password: formLabelAlign.password,
-    captchaCode: formLabelAlign.captchaCode
+    username: loginForm.username,
+    password: loginForm.password,
+    captchaCode: loginForm.captchaCode
   }).then(res => {
-    console.log(res);
-    alert(res.data.message)
     if (res.data.message === '登录成功') {
       localStorage.setItem("Local-Token", res.data.data)
       window.location.href = '/service'
+    } else {
+      ElMessage.error(res.data.message)
     }
   }).catch(err => {
     alert('登录失败，错误码: ' + err)
@@ -56,26 +59,26 @@ axios.interceptors.request.use(
       class="el-form"
       :label-position="'left'"
       label-width="100px"
-      :model="formLabelAlign"
+      :model="loginForm"
       style="max-width: 460px"
   >
     <el-form-item label="账户">
-      <el-input spellcheck="false" v-model="formLabelAlign.username"/>
+      <el-input spellcheck="false" v-model="loginForm.username"/>
     </el-form-item>
 
     <el-form-item label="密码">
-      <el-input spellcheck="false" type="password" show-password v-model="formLabelAlign.password"/>
+      <el-input spellcheck="false" type="password" show-password v-model="loginForm.password"/>
     </el-form-item>
 
     <el-form-item label="验证码">
-      <el-input spellcheck="false" check="false" v-model="formLabelAlign.captchaCode"/>
+      <el-input spellcheck="false" check="false" v-model="loginForm.captchaCode"/>
     </el-form-item>
 
     <el-form-item>
       <el-button type="success" @click="onRegister">注册</el-button>
       <el-button type="primary" @click="onLogin">登录</el-button>
       <div class="image">
-        <el-image style="width: 80px; height: 60px" :src="url" :fit="fits[0]"/>
+        <el-image style="width: 80px; height: 60px" :src="'http://localhost:8080/captcha'" :fit="'contain'"/>
       </div>
     </el-form-item>
 
