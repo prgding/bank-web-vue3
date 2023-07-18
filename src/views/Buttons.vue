@@ -1,22 +1,11 @@
 <script setup lang="ts">
-import axios from "axios";
+
 import {ElMessage, ElMessageBox} from 'element-plus'
 import {reactive, ref} from "vue";
-
-
-axios.interceptors.request.use(
-    (config) => {
-      const token = localStorage.getItem("Local-Token")
-      if (token) {
-        config.headers.Token = token;
-      }
-      return config;
-    },
-    (error) => Promise.reject(error)
-);
+import axios from "axios";
 
 const inquiry = () => {
-  axios.get('http://localhost:8080/inquiry').then(res => {
+  axios.get('/inquiry').then(res => {
     ElMessage.success("余额为：" + res.data.data)
   }).catch(err => {
     ElMessage.error('查询失败，错误码: ' + err)
@@ -30,11 +19,12 @@ const withdraw = () => {
     inputPattern: /[0-9]/,
     inputErrorMessage: '请输入数字',
   }).then(({value}) => {
-    axios.post("http://localhost:8080/withdraw", {
+    axios.post("/withdraw", {
       amount: value
     }).then(res => {
       if (res.data.message === '取款成功') {
         ElMessage.success(res.data.message)
+        inquiry()
       } else {
         ElMessage.error(res.data.message)
       }
@@ -51,11 +41,12 @@ const deposit = () => {
     inputPattern: /[0-9]/,
     inputErrorMessage: '请输入数字',
   }).then(({value}) => {
-    axios.post("http://localhost:8080/deposit", {
+    axios.post("/deposit", {
       amount: value
     }).then(res => {
       if (res.data.message === '存款成功') {
         ElMessage.success(res.data.message)
+        inquiry()
       } else {
         ElMessage.error(res.data.message)
       }
@@ -66,9 +57,9 @@ const deposit = () => {
 }
 
 // 获取当前登录用户
-const currUser = ref({username:"未登录"});
+const currUser = ref({username: "未登录"});
 const getCurrentUser = () => {
-  axios.get("http://localhost:8080/curr-user").then(res => {
+  axios.get("/curr-user").then(res => {
     currUser.value = res.data.data
     console.log(res);
   });
@@ -85,11 +76,16 @@ const closeAndClear = () => {
 
 const transfer = () => {
   dialogFormVisible.value = false
-  axios.post("http://localhost:8080/transfer", {
+  axios.post("/transfer", {
     toName: transForm.toName,
     transMoney: transForm.transMoney
   }).then(res => {
-    res.data.message === '转账成功' ? ElMessage.success(res.data.message) : ElMessage.error(res.data.message)
+    if (res.data.message === '转账成功') {
+      ElMessage.success(res.data.message)
+      inquiry()
+    } else {
+      ElMessage.error(res.data.message)
+    }
   }).catch(err => {
     ElMessage.error('转账失败，错误码: ' + err)
   })

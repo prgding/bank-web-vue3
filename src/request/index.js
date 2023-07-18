@@ -9,10 +9,9 @@ const instance = axios.create({
 });
 
 instance.interceptors.request.use(
-
 	function (config) {
 
-		config = config || { loading: true, servMsg: false, servMsgSync: false };
+		config = config || {loading: true, servMsg: false, servMsgSync: false};
 
 		config.loading = config.loading !== false
 		config.servMsg = config.servMsg === true // 是否显示服务端发来的成功消息
