@@ -108,11 +108,11 @@ const quit = () => {
   当前用户：{{ currUser.username }}
   <br><br>
   <el-row class="mb-4">
-    <el-button @click="inquiry" type="warning">查询余额</el-button>
-    <el-button @click="withdraw" type="primary">取款</el-button>
-    <el-button @click="deposit" type="success">存款</el-button>
-    <el-button @click="dialogFormVisible = true" type="info">转账</el-button>
-    <el-button @click="quit">退出</el-button>
+    <el-button @click="inquiry" type="warning" plain>查询余额</el-button>
+    <el-button @click="withdraw" type="primary" plain>取款</el-button>
+    <el-button @click="deposit" type="success" plain>存款</el-button>
+    <el-button @click="dialogFormVisible = true" type="info" plain>转账</el-button>
+    <el-button @click="quit" plain>退出</el-button>
   </el-row>
   <el-dialog align-center v-model="dialogFormVisible" title="转账">
     <el-form :model="transForm">
@@ -136,5 +136,4 @@ const quit = () => {
 .mb-4 {
   justify-content: center;
 }
-
 </style>

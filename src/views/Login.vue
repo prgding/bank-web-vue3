@@ -11,6 +11,17 @@ const loginForm = reactive({
   password: '',
   captchaCode: '',
 })
+const getCaptcha = () => {
+  axios.get('/captcha-code').then(res => {
+    loginForm.captchaCode = res.data.data
+  }).catch(err => {
+    ElMessage.error('获取验证码失败，错误码: ' + err)
+  })
+}
+// 页面完全加载完毕之后执行getCaptcha
+window.onload = getCaptcha
+
+
 const onRegister = () => {
   axios.post('/register', {
     username: loginForm.username,
@@ -40,8 +51,11 @@ const onLogin = () => {
     console.log("res = ", res);
     if (res.data.message === '登录成功') {
       localStorage.setItem("Local-Token", res.data.data)
-      console.log("login =", localStorage.getItem("Local-Token"));
-      window.location.href = '/service'
+      if (loginForm.username === "admin") {
+        window.location.href = '/admin'
+      } else {
+        window.location.href = '/service'
+      }
     } else {
       ElMessage.error(res.data.message)
     }
