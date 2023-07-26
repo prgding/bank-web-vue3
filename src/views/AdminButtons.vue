@@ -16,45 +16,21 @@ const getCurrentUser = () => {
 getCurrentUser();
 
 
-const freezeAct = () => {
-  ElMessageBox.prompt('输入要冻结的账户', '冻结账户', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    inputPattern: /[0-9]/,
-    inputErrorMessage: '请输入数字',
-  }).then(({value}) => {
-    axios.post("/freeze-act", {
-      userId: value
-    }).then(res => {
-      if (res.data.message === '冻结成功') {
-        ElMessage.success(res.data.message)
-      } else {
-        ElMessage.error(res.data.message)
-      }
-    }).catch(err => {
-      ElMessage.error('冻结失败，错误码: ' + err)
-    })
+const freezeAct = (row: User) => {
+  axios.post("/freeze", {id: row.id}).then(res => {
+    ElMessage.success('冻结成功')
+    userManage()
+  }).catch(err => {
+    ElMessage.error('冻结失败，错误码: ' + err)
   })
 }
 
-const unfreezeAct = () => {
-  ElMessageBox.prompt('输入要解冻的账户', '解冻账户', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    inputPattern: /[0-9]/,
-    inputErrorMessage: '请输入数字',
-  }).then(({value}) => {
-    axios.post("/unfreeze-act", {
-      userId: value
-    }).then(res => {
-      if (res.data.message === '解冻成功') {
-        ElMessage.success(res.data.message)
-      } else {
-        ElMessage.error(res.data.message)
-      }
-    }).catch(err => {
-      ElMessage.error('解冻失败，错误码: ' + err)
-    })
+const unfreezeAct = (row: User) => {
+  axios.post("/unfreeze", {id: row.id}).then(res => {
+    ElMessage.success('解冻成功')
+    userManage()
+  }).catch(err => {
+    ElMessage.error('解冻失败，错误码: ' + err)
   })
 }
 
@@ -86,6 +62,108 @@ const logManage = () => {
   logTableFlag.value = true
 }
 
+const editUser = (row) => {
+  Object.assign(userForm, row)
+  userDialogueFlag.value = true
+}
+const editLog = (row) => {
+  Object.assign(logForm, row)
+  logDialogueFlag.value = true
+}
+
+const balanceFormatter = (row, column, cellValue) => {
+  if (!isNaN(cellValue)) {
+    return parseFloat(cellValue).toFixed(2);
+  }
+  return cellValue;
+}
+
+const getFlagStatus = (flag) => {
+  if (flag === '冻结') {
+    return '<span style="color: red;">冻结</span>';
+  }
+  return '正常';
+
+}
+
+const userForm = reactive({
+  id: '',
+  username: '',
+  balance: '',
+  flag: ''
+})
+
+const logForm = reactive({
+  logId: '',
+  logType: '',
+  logAmount: '',
+  userId: '',
+  username: ''
+})
+
+let userDialogueFlag = ref(false)
+let logDialogueFlag = ref(false)
+
+const userChange = () => {
+  axios.post("/user-change", userForm).then(res => {
+    ElMessage.success('修改成功')
+    userDialogueFlag.value = false
+    userManage()
+  }).catch(err => {
+    ElMessage.error('修改失败，错误码: ' + err)
+  })
+}
+
+const logChange = () => {
+  axios.post("/log-change", logForm).then(res => {
+    ElMessage.success('修改成功')
+    logDialogueFlag.value = false
+    logManage()
+  }).catch(err => {
+    ElMessage.error('修改失败，错误码: ' + err)
+  })
+}
+
+const invisible = () => {
+  userDialogueFlag.value = false
+  logDialogueFlag.value = false
+}
+
+const delUser = (row) => {
+  ElMessageBox.confirm('此操作将永久删除该用户, 是否继续?', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    axios.post("/user-del", row).then(res => {
+      ElMessage.success('删除成功')
+      userDialogueFlag.value = false
+      userManage()
+    }).catch(err => {
+      ElMessage.error('删除失败，错误码: ' + err)
+    })
+  }).catch(() => {
+    ElMessage.info('已取消删除')
+  });
+}
+
+const delLog = (row) => {
+  ElMessageBox.confirm('此操作将永久删除该日志, 是否继续?', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    axios.post("/log-del", row).then(res => {
+      ElMessage.success('删除成功')
+      logDialogueFlag.value = false
+      logManage()
+    }).catch(err => {
+      ElMessage.error('删除失败，错误码: ' + err)
+    })
+  }).catch(() => {
+    ElMessage.info('已取消删除')
+  });
+}
 </script>
 
 <template>
@@ -97,35 +175,77 @@ const logManage = () => {
     <el-button @click="quit" plain>退出</el-button>
   </el-row>
 
-  <router-view/>
-
-  <el-table id="table" v-if="userTableFlag" :data="userTableData" stripe show-header>
+  <el-table id="table" v-if="userTableFlag" :data="userTableData" stripe>
+    <el-table-column type="selection" width="55"/>
+    <el-table-column prop="id" label="用户编号"/>
     <el-table-column prop="username" label="用户名"/>
-    <el-table-column prop="balance" label="余额"/>
-    <el-table-column prop="flag" label="冻结状态"/>
+    <el-table-column prop="balance" :formatter="balanceFormatter" label="余额(元)"/>
+    <el-table-column prop="flag" label="冻结状态">
+      <template #default="scope">
+        <span v-html="getFlagStatus(scope.row.flag)"></span>
+      </template>
+    </el-table-column>
     <el-table-column fixed="right" label="操作">
-      <template #default>
-        <el-button link type="primary" size="small" @click="handleClick">
+      <template #default="scope">
+        <el-button link type="primary" size="small" @click="editUser(scope.row)">
           修改信息
         </el-button>
-        <el-button link type="primary" size="small">冻结</el-button>
+        <el-button link type="primary" v-if="scope.row.flag === '正常'" size="small" @click="freezeAct(scope.row)">冻结</el-button>
+        <el-button link type="primary" v-if="scope.row.flag === '冻结'" size="small" @click="unfreezeAct(scope.row)">解冻</el-button>
+        <el-button link type="primary" size="small" @click="delUser(scope.row)">删除</el-button>
       </template>
     </el-table-column>
   </el-table>
 
-  <el-table id="table" v-if="logTableFlag" :data="logTableData" stripe show-header>
+  <el-table id="table" v-if="logTableFlag" :data="logTableData" stripe>
+    <el-table-column type="selection" width="55"/>
+    <el-table-column prop="logId" label="日志编号"/>
     <el-table-column prop="username" label="用户名"/>
-    <el-table-column prop="amount" label="操作金额"/>
-    <el-table-column prop="type" label="日志类型"/>
+    <el-table-column prop="logAmount" :formatter="balanceFormatter" label="操作金额(元)"/>
+    <el-table-column prop="logType" label="操作类型"/>
     <el-table-column fixed="right" label="操作">
-      <template #default>
-        <el-button link type="primary" size="small" @click="handleClick">
+      <template #default="scope">
+        <el-button link type="primary" size="small" @click="editLog(scope.row)">
           修改信息
         </el-button>
-        <el-button link type="primary" size="small">冻结</el-button>
+        <el-button link type="primary" size="small" @click="delLog(scope.row)">删除</el-button>
       </template>
     </el-table-column>
   </el-table>
+
+  <el-dialog align-center v-model="userDialogueFlag" title="修改用户信息">
+    <el-form :model="userForm">
+      <el-form-item label="用户名">
+        <el-input v-model="userForm.username"/>
+      </el-form-item>
+      <el-form-item label="余额">
+        <el-input v-model="userForm.balance"/>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="invisible">取消</el-button>
+        <el-button type="primary" @click="userChange">确认</el-button>
+      </span>
+    </template>
+  </el-dialog>
+
+  <el-dialog align-center v-model="logDialogueFlag" title="修改日志信息">
+    <el-form :model="logForm">
+      <el-form-item label="操作金额">
+        <el-input v-model="logForm.logAmount"/>
+      </el-form-item>
+      <el-form-item label="操作类型">
+        <el-input v-model="logForm.logType"/>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="invisible">取消</el-button>
+        <el-button type="primary" @click="logChange">确认</el-button>
+      </span>
+    </template>
+  </el-dialog>
 
 </template>
 
@@ -139,6 +259,5 @@ const logManage = () => {
   width: 80%;
   margin: 0 auto;
 }
-
 
 </style>
