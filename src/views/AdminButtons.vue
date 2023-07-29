@@ -3,7 +3,6 @@
 import {ElMessage, ElMessageBox} from 'element-plus'
 import {reactive, ref} from "vue";
 import axios from "axios";
-import {RouterView} from "vue-router";
 
 // 获取当前登录用户
 const currUser = ref({username: "未登录"});
@@ -16,7 +15,7 @@ const getCurrentUser = () => {
 getCurrentUser();
 
 
-const freezeAct = (row: User) => {
+const freezeAct = (row) => {
   axios.post("/freeze", {id: row.id}).then(res => {
     ElMessage.success('冻结成功')
     userManage()
@@ -25,7 +24,7 @@ const freezeAct = (row: User) => {
   })
 }
 
-const unfreezeAct = (row: User) => {
+const unfreezeAct = (row) => {
   axios.post("/unfreeze", {id: row.id}).then(res => {
     ElMessage.success('解冻成功')
     userManage()
@@ -44,22 +43,42 @@ let logTableData = ref([])
 let userTableFlag = ref(false)
 let logTableFlag = ref(false)
 const userManage = () => {
-  axios.get("/user-list").then(res => {
-    userTableData.value = res.data.data
+  if (logTableFlag.value === true) {
+    pageForm.currentPage = 1
+  }
+  axios.post("/users-page", pageForm).then(res => {
+    userTableData.value = res.data.data.content
+    getUsersAmount()
   }).catch(err => {
     ElMessage.error('获取用户信息失败，错误码: ' + err)
   })
+
+  // 展示对应表格
   logTableFlag.value = false
   userTableFlag.value = true
+
+  // 展示对应分页
+  logPageFlag.value = false
+  userPageFlag.value = true
 }
 const logManage = () => {
-  axios.get("/log-list").then(res => {
-    logTableData.value = res.data.data
+  if (userTableFlag.value === true) {
+    pageForm.currentPage = 1
+  }
+  axios.post("/logs-page", pageForm).then(res => {
+    logTableData.value = res.data.data.content
+    getLogsAmount()
   }).catch(err => {
     ElMessage.error('获取日志信息失败，错误码: ' + err)
   })
+
+  // 展示对应表格
   userTableFlag.value = false
   logTableFlag.value = true
+
+  // 展示对应分页
+  userPageFlag.value = false
+  logPageFlag.value = true
 }
 
 const editUser = (row) => {
@@ -79,10 +98,10 @@ const balanceFormatter = (row, column, cellValue) => {
 }
 
 const getFlagStatus = (flag) => {
-  if (flag === '冻结') {
+  if (flag === 0) {
     return '<span style="color: red;">冻结</span>';
   }
-  return '正常';
+  return "正常";
 
 }
 
@@ -164,6 +183,56 @@ const delLog = (row) => {
     ElMessage.info('已取消删除')
   });
 }
+
+const pageForm = reactive({
+  currentPage: 1,
+  totalRowNum: 20,
+  pageSize: 5
+})
+
+const getUsersAmount = () => {
+  axios.get("/users-amount").then(res => {
+    pageForm.totalRowNum = res.data.data
+  }).catch(err => {
+    ElMessage.error('获取用户总数失败，错误码: ' + err)
+  })
+}
+
+const getLogsAmount = () => {
+  axios.get("/logs-amount").then(res => {
+    pageForm.totalRowNum = res.data.data
+  }).catch(err => {
+    ElMessage.error('获取日志总数失败，错误码: ' + err)
+  })
+}
+
+let userPageFlag = ref(false)
+let logPageFlag = ref(false)
+// 修改当前页码
+const changeUserCurrent = (num) => {
+  pageForm.currentPage = num;
+  userManage()
+}
+
+const changeUserSize = (size) => {
+  pageForm.pageSize = size
+  console.log("size= ", size);
+  // 重新查询
+  userManage()
+}
+
+// 修改当前页码
+const changeLogCurrent = (num) => {
+  pageForm.currentPage = num;
+  logManage()
+}
+
+const changeLogSize = (size) => {
+  pageForm.pageSize = size
+  console.log("size= ", size);
+  // 重新查询
+  logManage()
+}
 </script>
 
 <template>
@@ -180,9 +249,9 @@ const delLog = (row) => {
     <el-table-column prop="id" label="用户编号"/>
     <el-table-column prop="username" label="用户名"/>
     <el-table-column prop="balance" :formatter="balanceFormatter" label="余额(元)"/>
-    <el-table-column prop="flag" label="冻结状态">
+    <el-table-column prop="userFlag" label="冻结状态">
       <template #default="scope">
-        <span v-html="getFlagStatus(scope.row.flag)"></span>
+        <span v-html="getFlagStatus(scope.row.userFlag)"></span>
       </template>
     </el-table-column>
     <el-table-column fixed="right" label="操作">
@@ -190,8 +259,8 @@ const delLog = (row) => {
         <el-button link type="primary" size="small" @click="editUser(scope.row)">
           修改信息
         </el-button>
-        <el-button link type="primary" v-if="scope.row.flag === '正常'" size="small" @click="freezeAct(scope.row)">冻结</el-button>
-        <el-button link type="primary" v-if="scope.row.flag === '冻结'" size="small" @click="unfreezeAct(scope.row)">解冻</el-button>
+        <el-button link type="primary" v-if="scope.row.userFlag === 1" size="small" @click="freezeAct(scope.row)">冻结</el-button>
+        <el-button link type="primary" v-if="scope.row.userFlag === 0" size="small" @click="unfreezeAct(scope.row)">解冻</el-button>
         <el-button link type="primary" size="small" @click="delUser(scope.row)">删除</el-button>
       </template>
     </el-table-column>
@@ -247,6 +316,35 @@ const delLog = (row) => {
     </template>
   </el-dialog>
 
+
+  <div class="user-page">
+    <el-pagination
+        v-if="userPageFlag"
+        v-model:current-page="pageForm.currentPage"
+        v-model:page-size="pageForm.pageSize"
+        :page-sizes="[5, 10, 15, 20]"
+        :background="true"
+        layout="sizes, prev, pager, next"
+        :total="pageForm.totalRowNum"
+        @size-change="changeUserSize"
+        @current-change="changeUserCurrent"
+    />
+  </div>
+
+  <div class="log-page">
+    <el-pagination
+        v-if="logPageFlag"
+        v-model:current-page="pageForm.currentPage"
+        v-model:page-size="pageForm.pageSize"
+        :page-sizes="[5, 10, 15, 20]"
+        :background="true"
+        layout="sizes, prev, pager, next"
+        :total="pageForm.totalRowNum"
+        @size-change="changeLogSize"
+        @current-change="changeLogCurrent"
+    />
+  </div>
+
 </template>
 
 <style scoped>
@@ -256,6 +354,18 @@ const delLog = (row) => {
 }
 
 #table {
+  width: 80%;
+  margin: 0 auto;
+}
+
+.user-page {
+  padding-top: 30px;
+  width: 80%;
+  margin: 0 auto;
+}
+
+.log-page {
+  padding-bottom: 100px;
   width: 80%;
   margin: 0 auto;
 }
