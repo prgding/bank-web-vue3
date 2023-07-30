@@ -66,7 +66,7 @@ const logManage = () => {
     pageForm.currentPage = 1
   }
   axios.post("/logs-page", pageForm).then(res => {
-    logTableData.value = res.data.data.content
+    logTableData.value = res.data.data
     getLogsAmount()
   }).catch(err => {
     ElMessage.error('获取日志信息失败，错误码: ' + err)
@@ -233,10 +233,39 @@ const changeLogSize = (size) => {
   // 重新查询
   logManage()
 }
+
+let userLogoDia = ref(false)
+import {UploadFilled} from '@element-plus/icons-vue'
+let headers = ref({
+  'Token': localStorage.getItem("Local-Token")
+})
 </script>
 
 <template>
-  当前用户：{{ currUser.username }}
+  当前用户：{{ currUser.username }} &nbsp;
+  <el-button @click="userLogoDia = true" type="warning" plain>上传头像</el-button>
+
+  <el-dialog v-model="userLogoDia" title="头像上传">
+    <el-upload
+        class="upload-demo"
+        drag
+        action="http://localhost:8081/api/upload"
+        multiple
+        :headers="headers"
+    >
+      <el-icon class="el-icon--upload">
+        <upload-filled/>
+      </el-icon>
+      <div class="el-upload__text">
+        将文件拖拽到此处或者 <em>点击上传</em>
+      </div>
+      <template #tip>
+        <div class="el-upload__tip">
+          请上传 500kb 以下的 jpg/png 文件
+        </div>
+      </template>
+    </el-upload>
+  </el-dialog>
 
   <el-row class="mb-4">
     <el-button @click="userManage" type="primary" plain>用户管理</el-button>
@@ -344,6 +373,7 @@ const changeLogSize = (size) => {
         @current-change="changeLogCurrent"
     />
   </div>
+
 
 </template>
 

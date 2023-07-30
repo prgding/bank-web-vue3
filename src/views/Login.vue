@@ -60,8 +60,7 @@ const onLogin = () => {
       ElMessage.error(res.data.message)
     }
   }).catch(err => {
-    console.log("err = ", err);
-    alert('登录失败，错误码: ' + err)
+    ElMessage.error('登录失败，错误码: ' + err)
   })
 }
 
