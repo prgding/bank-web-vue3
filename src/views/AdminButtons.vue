@@ -1,7 +1,7 @@
 <script setup lang="ts">
 
 import {ElMessage, ElMessageBox} from 'element-plus'
-import {reactive, ref} from "vue";
+import {inject, reactive, ref, toRefs} from "vue";
 import axios from "axios";
 
 // 获取当前登录用户
@@ -13,7 +13,12 @@ const getCurrentUser = () => {
   });
 }
 getCurrentUser();
-
+const state = reactive({
+  squareUrl:
+      'http://localhost:8081/img/admin.png',
+  sizeList: ['small', '', 'large'] as const,
+})
+const {circleUrl, squareUrl, sizeList} = toRefs(state)
 
 const freezeAct = (row) => {
   axios.post("/freeze", {id: row.id}).then(res => {
@@ -236,14 +241,132 @@ const changeLogSize = (size) => {
 
 let userLogoDia = ref(false)
 import {UploadFilled} from '@element-plus/icons-vue'
+
 let headers = ref({
   'Token': localStorage.getItem("Local-Token")
 })
+const backend = inject('$backend');
+const imgUpMsg = ref('更换头像')
+const selectMsg = ref('全选')
+const errorHandler = (err) => {
+  state.squareUrl = 'https://cube.elemecdn.com/9/c2/f0ee8a3c7c9638a54940382568c9dpng.png'
+  ElMessage.info('用户未上传头像')
+  imgUpMsg.value = '上传头像'
+}
+const selectedRows = ref([])
+const selectChange = (selected) => {
+  selectedRows.value = selected;
+}
+import {saveAs} from 'file-saver';
+import {utils, write} from "xlsx";
+
+const exportUsers = () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.info('请先选择要导出的用户')
+    return
+  }
+  // 复制选中的行以便于修改数据而不影响原始数据
+  const processedData = selectedRows.value.map(row => ({...row}));
+  // 将userFlag字段转换为文字描述
+  processedData.forEach(row => {
+    if (row.userFlag === 0) {
+      row.userFlag = '冻结';
+    } else if (row.userFlag === 1) {
+      row.userFlag = '正常';
+    }
+  });
+
+  // 创建一个数组，第一行为自定义的列名称
+  let dataToExport = [
+    ["用户编号", "用户名", "余额(元)", "冻结状态"],
+    ...processedData.map(item => [item.id, item.username, item.balance, item.userFlag])
+  ];
+
+  const ws = utils.aoa_to_sheet(dataToExport);
+  const wb = utils.book_new();
+  utils.book_append_sheet(wb, ws, "SelectedRows");
+
+  const wbout = write(wb, {
+    bookType: "xlsx",
+    bookSST: true,
+    type: "array"
+  });
+
+  saveAs(
+      new Blob([wbout], {type: "application/octet-stream"}),
+      "users.xlsx"
+  );
+}
+
+const exportLogs = () => {
+  if (selectedRows.value.length === 0) {
+    ElMessage.info('请先选择要导出的日志')
+    return
+  }
+  // 复制选中的行以便于修改数据而不影响原始数据
+  const processedData = selectedRows.value.map(row => ({...row}));
+
+  // 创建一个数组，第一行为自定义的列名称
+  let dataToExport = [
+    ["日志编号", "用户名", "操作金额(元)", "操作类型"],
+    ...processedData.map(item => [item.logId, item.username, item.logAmount, item.logType])
+  ];
+
+  const ws = utils.aoa_to_sheet(dataToExport);
+  const wb = utils.book_new();
+  utils.book_append_sheet(wb, ws, "SelectedRows");
+
+  const wbout = write(wb, {
+    bookType: "xlsx",
+    bookSST: true,
+    type: "array"
+  });
+
+  saveAs(
+      new Blob([wbout], {type: "application/octet-stream"}),
+      "logs.xlsx"
+  );
+}
+const userTable = ref(null);
+const logTable = ref(null);
+const selectAll = () => {
+  if (userTableFlag.value) {
+    userTable.value.toggleAllSelection();
+  }
+  if (logTableFlag.value) {
+    logTable.value.toggleAllSelection();
+  }
+}
+const changeSelectMsg = () => {
+  if (selectMsg.value === '取消全选') {
+    selectMsg.value = '全选'
+  } else if (selectMsg.value === '全选')
+    selectMsg.value = '取消全选'
+}
 </script>
 
 <template>
-  当前用户：{{ currUser.username }} &nbsp;
-  <el-button @click="userLogoDia = true" type="warning" plain>上传头像</el-button>
+  <el-row class="demo-avatar demo-basic" gutter="{20}">
+    <!-- 第一个部分：显示 "当前用户：{{ currUser.username }}" -->
+    <el-col :span="8" style="text-align: right; padding-right: 0;padding-top: 15px">
+      <div>
+        当前用户：{{ currUser.username }}
+      </div>
+    </el-col>
+
+    <!-- 第二个部分：显示用户的头像 -->
+    <el-col :span="8">
+      <div class="demo-basic--circle">
+        <el-avatar shape="square" :size="'large'" :src="squareUrl" @error="errorHandler"/>
+      </div>
+    </el-col>
+
+    <!-- 第3个部分：显示上传头像 -->
+    <!-- 第三个部分：根据 squareUrl 判断显示上传还是更换头像按钮 -->
+    <el-col :span="8" style="text-align: left; padding-left: 0;margin-top: 15px">
+      <el-button @click="userLogoDia = true" type="warning" plain>{{ imgUpMsg }}</el-button>
+    </el-col>
+  </el-row>
 
   <el-dialog v-model="userLogoDia" title="头像上传">
     <el-upload
@@ -261,7 +384,9 @@ let headers = ref({
       </div>
       <template #tip>
         <div class="el-upload__tip">
-          请上传 500kb 以下的 jpg/png 文件
+          请上传 500kb 以下的 png 文件
+          <br>
+          上传/更新后请刷新页面
         </div>
       </template>
     </el-upload>
@@ -273,7 +398,14 @@ let headers = ref({
     <el-button @click="quit" plain>退出</el-button>
   </el-row>
 
-  <el-table id="table" v-if="userTableFlag" :data="userTableData" stripe>
+  <el-table id="table"
+            v-if="userTableFlag"
+            :data="userTableData"
+            stripe
+            ref="userTable"
+            @selection-change="selectChange"
+            @select-all="changeSelectMsg"
+  >
     <el-table-column type="selection" width="55"/>
     <el-table-column prop="id" label="用户编号"/>
     <el-table-column prop="username" label="用户名"/>
@@ -295,7 +427,15 @@ let headers = ref({
     </el-table-column>
   </el-table>
 
-  <el-table id="table" v-if="logTableFlag" :data="logTableData" stripe>
+
+  <el-table id="table"
+            v-if="logTableFlag"
+            :data="logTableData"
+            stripe
+            ref="logTable"
+            @selection-change="selectChange"
+            @select-all="changeSelectMsg"
+  >
     <el-table-column type="selection" width="55"/>
     <el-table-column prop="logId" label="日志编号"/>
     <el-table-column prop="username" label="用户名"/>
@@ -345,6 +485,12 @@ let headers = ref({
     </template>
   </el-dialog>
 
+  <div id="export">
+    <el-button v-if="userTableFlag" @click="selectAll" type="primary" plain>{{ selectMsg }}</el-button>
+    <el-button v-if="logTableFlag" @click="selectAll" type="primary" plain>{{ selectMsg }}</el-button>
+    <el-button v-if="userTableFlag" @click="exportUsers" type="warning" plain>导出选中用户</el-button>
+    <el-button v-if="logTableFlag" @click="exportLogs" type="warning" plain>导出选中日志</el-button>
+  </div>
 
   <div class="user-page">
     <el-pagination
@@ -380,7 +526,7 @@ let headers = ref({
 <style scoped>
 .mb-4 {
   justify-content: center;
-  padding: 30px 0;
+  padding: 20px 0;
 }
 
 #table {
@@ -389,7 +535,7 @@ let headers = ref({
 }
 
 .user-page {
-  padding-top: 30px;
+  padding-top: 20px;
   width: 80%;
   margin: 0 auto;
 }
@@ -398,6 +544,12 @@ let headers = ref({
   padding-bottom: 100px;
   width: 80%;
   margin: 0 auto;
+}
+
+#export {
+  width: 80%;
+  margin: 20px auto 0;
+  text-align: left;
 }
 
 </style>

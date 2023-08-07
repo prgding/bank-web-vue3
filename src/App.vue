@@ -3,7 +3,7 @@ import {RouterLink, RouterView} from 'vue-router'
 </script>
 
 <template>
-  <h1>Web application</h1>
+  <h1>Web Bank</h1>
   <div id="view">
     <router-view/>
   </div>
