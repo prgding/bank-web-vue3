@@ -5,20 +5,20 @@ import {inject, reactive, ref, toRefs} from "vue";
 import axios from "axios";
 
 // 获取当前登录用户
-const currUser = ref({username: "未登录"});
+const currUser = ref({username: "未登录", imageUrl: ""});
 const getCurrentUser = () => {
   axios.get("/curr-user").then(res => {
     currUser.value = res.data.data
-    console.log(res);
+    console.log("currUser ==", currUser);
+    state.squareUrl =
+        `http://localhost:8081/img/${currUser.value.imageUrl}`
   });
 }
 getCurrentUser();
 const state = reactive({
-  squareUrl:
-      'http://localhost:8081/img/admin.png',
-  sizeList: ['small', '', 'large'] as const,
+  squareUrl: "",
 })
-const {circleUrl, squareUrl, sizeList} = toRefs(state)
+const {squareUrl} = toRefs(state)
 
 const freezeAct = (row) => {
   axios.post("/freeze", {id: row.id}).then(res => {
@@ -386,7 +386,7 @@ const changeSelectMsg = () => {
         <div class="el-upload__tip">
           请上传 500kb 以下的 png 文件
           <br>
-          上传/更新后请刷新页面
+          <span style="color: #f5222d">上传/更新后刷新页面生效</span>
         </div>
       </template>
     </el-upload>

@@ -11,6 +11,8 @@ const loginForm = reactive({
   password: '',
   captchaCode: '',
 })
+
+// 自动填入验证码
 const getCaptcha = () => {
   axios.get('/captcha-code').then(res => {
     loginForm.captchaCode = res.data.data
@@ -19,7 +21,7 @@ const getCaptcha = () => {
   })
 }
 // 页面完全加载完毕之后执行getCaptcha
-window.onload = getCaptcha
+// window.onload = getCaptcha
 
 
 const onRegister = () => {
