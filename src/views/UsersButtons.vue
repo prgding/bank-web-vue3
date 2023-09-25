@@ -195,7 +195,9 @@ const changeLogSize = (size) => {
 }
 const changeLogCurrent = (num) => {
   pageForm.currentPage = num;
+  showLogMsg.value = true;
   logManage()
+
 }
 const invisible = () => {
   logDialogueFlag.value = false
@@ -203,6 +205,7 @@ const invisible = () => {
 const logChange = () => {
   axios.post("/log-change", logForm).then(res => {
     ElMessage.success('修改成功')
+    showLogMsg.value = true;
     logDialogueFlag.value = false
     logManage()
   }).catch(err => {
